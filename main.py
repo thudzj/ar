@@ -2,6 +2,7 @@ import numpy as np
 import torch
 from tasks import Task, random_task
 from optimizers import OPTS, LRS, GradStats
+import matplotlib.pyplot as plt
 
 if __name__ == "__main__":
     # hyper-parameters
@@ -66,7 +67,19 @@ if __name__ == "__main__":
 
     ## test phase: test the trained policy network
     print("Testing")
-    task_new = random_task()
+    task_new = Task(1,3) #random_task()
+
+    w = torch.tensor([-2.], requires_grad=True)
+    alpha = torch.tensor([2.], requires_grad=True)
+    optimizer_alpha = torch.optim.SGD([alpha], lr=.3)
+
+    grad_stats = GradStats(w, beta2_rmsprop=beta2_rmsprop)
+
+    o_loss = torch.tensor([0.])
+    o_grad = torch.tensor([0.])
+
+    points_x, points_y = [alpha.item()], [w.item()]
+
     for outer_ite in range(outer_T):
 
         grad_stats.detach()
@@ -80,8 +93,7 @@ if __name__ == "__main__":
             # choose optimizer and lr with a policy net
             # policy_o = policy_net(torch.concat([o_loss, o_grad, i_loss, i_grad], 0))
             # opt, lr = policy_o.sample()
-            # logp = logp(opt | policy_o) + logp(lr | policy_o)
-            opt, lr = 6, 1
+            opt, lr = 0, 1
             ws.append(OPTS[opt](LRS[lr], ws[-1], i_grad, grad_stats))
 
         w = ws[-1]
@@ -91,5 +103,14 @@ if __name__ == "__main__":
         o_loss.backward()
         o_grad = alpha.grad.clone().detach()
         optimizer_alpha.step()
+
+        points_x.append(alpha.item())
+        points_y.append(w.item())
+
     print("Optima: ", task_new.optimal_alpha, task_new.optimal_w)
     print("Found solution: ", alpha.item(), w.item())
+    plt.figure()
+    plt.plot(points_x, points_y)
+    plt.plot([0, np.max(points_x)+1], [0, (np.max(points_x)+1)*task_new.p/2.], 'r--')
+    plt.plot([task_new.optimal_alpha], [task_new.optimal_w], 'g^')
+    plt.savefig("example.pdf")
