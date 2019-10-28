@@ -10,13 +10,18 @@ if __name__ == "__main__":
     beta2_rmsprop = 0.9
     outer_T = 100
     inner_T = 5
+    num_tasks_per_batch = 10
+
+    # initialize the policy network and the corresponding optimizer
+    # policy_net = MLP(20)
+    # optimizer_policy = torch.optim.Adam(policy_net.parameters(), lr=.01)
 
     # initialize a task
-    task = Task()
+    task = random_task(num_tasks_per_batch)
 
     # define variables
-    w = torch.tensor([-2.], requires_grad=True)
-    alpha = torch.tensor([2.], requires_grad=True)
+    w = torch.tensor([-2.]*num_tasks_per_batch, requires_grad=True)
+    alpha = torch.tensor([2.]*num_tasks_per_batch, requires_grad=True)
 
     # define optimizer
     optimizer_alpha = torch.optim.SGD([alpha], lr=.3)
@@ -24,12 +29,8 @@ if __name__ == "__main__":
     # initialize the statistics of gradients
     grad_stats = GradStats(w, beta2_rmsprop=beta2_rmsprop)
 
-    # initialize the policy network and the corresponding optimizer
-    # policy_net = MLP(20)
-    # optimizer_policy = torch.optim.Adam(policy_net.parameters(), lr=.01)
-
-    o_loss = torch.tensor([0.])
-    o_grad = torch.tensor([0.])
+    o_loss = torch.zeros_like(alpha)
+    o_grad = torch.zeros_like(alpha)
 
     for outer_ite in range(outer_T):
 
@@ -42,32 +43,32 @@ if __name__ == "__main__":
             grad_stats.update(i_grad)
 
             # choose optimizer and lr with a policy net
-            # policy_o = policy_net(torch.concat([o_loss, o_grad, i_loss, i_grad], 0))
+            # policy_o = policy_net(torch.stack([o_loss, o_grad, i_loss, i_grad], 1))
             # opt, lr = policy_o.sample()
             # logp = logp(opt | policy_o) + logp(lr | policy_o)
-            opt, lr = 6, 1
+            opt, lr = 2, 1
             ws.append(OPTS[opt](LRS[lr], ws[-1], i_grad, grad_stats))
 
         w = ws[-1]
 
-        o_loss = task.outer_loss(w, alpha)
+        o_loss = task.outer_loss(w, alpha).sum()
         optimizer_alpha.zero_grad()
         o_loss.backward()
         o_grad = alpha.grad.clone().detach()
         optimizer_alpha.step()
 
         # get reward and update the policy
-        # reward = task.get_reward(alpha)
+        reward = task.get_reward(alpha)
         # optimizer_policy.zero_grad()
-        # policy_loss = -logp * reward
+        # policy_loss = -logp * reward.mean()
         # policy_loss.backward()
         # optimizer_policy.step()
 
-        print("Training ite", outer_ite, alpha, w)
+        print("Training ite", outer_ite, reward)
 
     ## test phase: test the trained policy network
     print("Testing")
-    task_new = Task(1,3) #random_task()
+    task_new = Task()
 
     w = torch.tensor([-2.], requires_grad=True)
     alpha = torch.tensor([2.], requires_grad=True)
@@ -75,8 +76,8 @@ if __name__ == "__main__":
 
     grad_stats = GradStats(w, beta2_rmsprop=beta2_rmsprop)
 
-    o_loss = torch.tensor([0.])
-    o_grad = torch.tensor([0.])
+    o_loss = torch.zeros_like(alpha)
+    o_grad = torch.zeros_like(alpha)
 
     points_x, points_y = [alpha.item()], [w.item()]
 
@@ -91,14 +92,14 @@ if __name__ == "__main__":
             grad_stats.update(i_grad)
 
             # choose optimizer and lr with a policy net
-            # policy_o = policy_net(torch.concat([o_loss, o_grad, i_loss, i_grad], 0))
+            # policy_o = policy_net(torch.stack([o_loss, o_grad, i_loss, i_grad], 1))
             # opt, lr = policy_o.sample()
-            opt, lr = 0, 1
+            opt, lr = 2, 1
             ws.append(OPTS[opt](LRS[lr], ws[-1], i_grad, grad_stats))
 
         w = ws[-1]
 
-        o_loss = task_new.outer_loss(w, alpha)
+        o_loss = task_new.outer_loss(w, alpha).sum()
         optimizer_alpha.zero_grad()
         o_loss.backward()
         o_grad = alpha.grad.clone().detach()
