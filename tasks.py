@@ -12,8 +12,8 @@ class Task:
     whose optima is alpha_o = q/p
     '''
     def __init__(self, p=numpy.array([2]), q=numpy.array([2]), num_tasks_per_batch=1):
-        self.p = torch.from_numpy(p).requires_grad_(False)
-        self.q = torch.from_numpy(q).requires_grad_(False)
+        self.p = torch.from_numpy(p).requires_grad_(False).float()
+        self.q = torch.from_numpy(q).requires_grad_(False).float()
         self.num_tasks_per_batch = num_tasks_per_batch
         self.optimal_alpha = self.q/self.p
         self.optimal_w = self.q/2
