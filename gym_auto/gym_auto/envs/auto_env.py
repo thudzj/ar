@@ -26,7 +26,7 @@ class AutoEnv(gym.Env):
         
         # initialize a task
         self.task = random_task(self.num_tasks_per_batch)
-
+        
         # define variables
         self.w = torch.tensor([-2.]*self.num_tasks_per_batch, requires_grad=True)
         self.alpha = torch.tensor([2.]*self.num_tasks_per_batch, requires_grad=True)
@@ -50,8 +50,8 @@ class AutoEnv(gym.Env):
         self.outer_count = 0
         
         self.points = []
-        self.points_x = []
-        self.points_y = []
+        self.points_x = [self.alpha[0].item()]
+        self.points_y = [self.w[0].item()]
         
         self.i_loss = self.task.inner_loss(self.ws[-1], self.alpha) + self.weight_decay_w/2. * (self.ws[-1])**2
         self.i_grad = torch.autograd.grad(outputs=self.i_loss, inputs=self.ws[-1], grad_outputs=torch.ones_like(self.i_loss),
@@ -74,7 +74,7 @@ class AutoEnv(gym.Env):
         
             self.o_loss = self.task.outer_loss(self.w, self.alpha).sum()
             self.optimizer_alpha.zero_grad()
-            self.o_loss.backward()
+            self.o_loss.backward(retain_graph=True)
             self.o_grad = self.alpha.grad.clone().detach()
             self.optimizer_alpha.step()
             
@@ -86,8 +86,9 @@ class AutoEnv(gym.Env):
             # optimizer_policy.step()
             
             self.points.append(torch.mean(reward))
-            self.points_x.append(self.ws[-1][0].item())
-            self.points_y.append(self.alpha[0].item())
+            self.points_x.append(self.alpha[0].item())
+            self.points_y.append(self.ws[-1][0].item())
+            self.grad_stats.detach()
             print("Training ite", self.outer_count, reward)
             
         else:
@@ -123,7 +124,6 @@ class AutoEnv(gym.Env):
         self.o_loss = torch.zeros_like(self.alpha)
         self.o_grad = torch.zeros_like(self.alpha)
         
-        self.grad_stats.detach()
         self.ws = [self.w.detach_().requires_grad_()]
         
         #whether in inner optimization
@@ -131,8 +131,8 @@ class AutoEnv(gym.Env):
         self.outer_count = 0
         
         self.points = []
-        self.points_x = []
-        self.points_y = []
+        self.points_x = [self.alpha[0].item()]
+        self.points_y = [self.w[0].item()]
         
         self.i_loss = self.task.inner_loss(self.ws[-1], self.alpha) + self.weight_decay_w/2. * (self.ws[-1])**2
         self.i_grad = torch.autograd.grad(outputs=self.i_loss, inputs=self.ws[-1], grad_outputs=torch.ones_like(self.i_loss),
