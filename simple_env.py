@@ -122,6 +122,7 @@ class SimpleEnv:
                     self.grad_stats.v, self.grad_stats.square_grad_sum, self.grad_stats.first_moment, \
                     self.grad_stats.second_moment, self.grad_stats.second_moment_rmsprop], 1).detach()
         print('reset')
+        return self.init_ob
 
     def render(self):
         plt.subplot(1,2,1)
