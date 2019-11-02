@@ -22,18 +22,20 @@ class SimpleEnv:
         self.inner_T = 5
         self.testing = testing
         self.num_tasks_per_batch = 1
+        self.n_opts = len(OPTS)
 
         # initialize
-        self.reset(p, q)
+        # self.reset(p, q)
 
     def step(self, action):
         # action: opt, lr
         opt = action[0]
         lr = action[1]
-        self.inner_count = (self.inner_count + 1) % self.inner_T
-        self.ws.append(OPTS[opt](LRS[lr], self.ws[-1], self.i_grad, self.grad_stats))
-        reward = 0
-        episode_over = False
+        if opt == self.n_opts:
+            self.inner_count = 0
+        else:
+            self.inner_count = (self.inner_count + 1) % self.inner_T
+            self.ws.append(OPTS[opt](LRS[lr], self.ws[-1], self.i_grad, self.grad_stats))
 
         # whether in inner optimization
         if self.inner_count == 0:
@@ -46,19 +48,19 @@ class SimpleEnv:
             self.o_grad = self.alpha.grad.clone().detach()
             self.optimizer_alpha.step()
 
-            # get reward and update the policy
-            reward = self.task.get_reward(self.alpha)
-            # optimizer_policy.zero_grad()
-            # policy_loss = -logp * reward.mean()
-            # policy_loss.backward()
-            # optimizer_policy.step()
+            self.o_loss_mv = self.o_loss_mv*0.9 + self.o_loss.data*0.1
+            self.o_grad_mv = self.o_grad_mv*0.9 + self.o_grad.data*0.1
 
-            self.points.append(torch.mean(reward))
+            # get reward and update the policy
+            reward = self.task.get_reward(self.alpha).item()
+
+            self.points.append(reward)
             self.points_x.append(self.alpha[0].item())
             self.points_y.append(self.ws[-1][0].item())
             self.grad_stats.detach()
             self.ws = [self.w.detach_().requires_grad_()]
             if not self.testing:
+                # pass
                 print("Training ite", self.outer_count, reward)
             else:
                 print("Testing ite", self.outer_count, reward)
@@ -66,21 +68,24 @@ class SimpleEnv:
         else:
             reward = 0
 
+        self.i_grad_change = -self.i_grad.data
         self.i_loss = self.task.inner_loss(self.ws[-1], self.alpha) + self.weight_decay_w/2. * (self.ws[-1])**2
         self.i_grad = torch.autograd.grad(outputs=self.i_loss, inputs=self.ws[-1],
                                         grad_outputs=torch.ones_like(self.i_loss),
                                         create_graph=True, retain_graph=True, only_inputs=True)[0]
+        self.i_grad_change += self.i_grad.data
         self.grad_stats.update(self.i_grad)
-        ob = torch.stack([self.i_loss, self.i_grad, self.o_loss.view(1), self.o_grad, \
-                    self.grad_stats.v, self.grad_stats.square_grad_sum, self.grad_stats.first_moment, \
-                    self.grad_stats.second_moment, self.grad_stats.second_moment_rmsprop], 1).detach()
+        ob = torch.stack([self.i_loss, self.i_grad, self.i_grad_change, self.o_loss.view(1), self.o_grad], 1).detach()
+
+        self.i_loss_mv = self.i_loss_mv*0.9 + self.i_loss.data*0.1
+        self.i_grad_mv = self.i_grad_mv*0.9 + self.i_grad.data*0.1
 
         if self.outer_count == self.outer_T:
             episode_over = True
         else:
             episode_over = False
 
-        return ob, reward, episode_over,{}
+        return ob, reward, episode_over,{'i_loss': self.i_loss.item()}
 
     def reset(self, p=None, q=None):
         # initialize a task
@@ -92,21 +97,16 @@ class SimpleEnv:
         # define variables
         self.w = torch.tensor([-2.]*self.num_tasks_per_batch, requires_grad=True)
         self.alpha = torch.tensor([2.]*self.num_tasks_per_batch, requires_grad=True)
+        self.ws = [self.w]
 
-        # define optimizer
-        self.optimizer_alpha = torch.optim.SGD([self.alpha], lr=.3)
-
-        # initialize the statistics of gradients
+        # initialize the statistics of gradients for w
         self.grad_stats = GradStats(self.w, beta2_rmsprop=self.beta2_rmsprop)
+
+        # define optimizer for alpha
+        self.optimizer_alpha = torch.optim.SGD([self.alpha], lr=.3)
 
         self.o_loss = torch.zeros_like(self.alpha)
         self.o_grad = torch.zeros_like(self.alpha)
-
-        self.ws = [self.w]
-
-        #whether in inner optimization
-        self.inner_count = 0
-        self.outer_count = 0
 
         self.points = []
         self.points_x = [self.alpha[0].item()]
@@ -118,11 +118,18 @@ class SimpleEnv:
                                         create_graph=True, retain_graph=True, only_inputs=True)[0]
         self.grad_stats.update(self.i_grad)
 
-        self.init_ob = torch.stack([self.i_loss, self.i_grad, self.o_loss, self.o_grad, \
-                    self.grad_stats.v, self.grad_stats.square_grad_sum, self.grad_stats.first_moment, \
-                    self.grad_stats.second_moment, self.grad_stats.second_moment_rmsprop], 1).detach()
+        self.i_loss_mv = self.i_loss.clone().detach_()
+        self.i_grad_mv = self.i_grad.clone().detach_()
+        self.o_loss_mv = self.o_loss.clone().detach_()
+        self.o_grad_mv = self.o_grad.clone().detach_()
+        self.i_grad_change = self.i_grad.clone().detach_()
+
+        #whether in inner optimization
+        self.inner_count = 0
+        self.outer_count = 0
+
         print('reset')
-        return self.init_ob
+        return torch.stack([self.i_loss, self.i_grad, self.i_grad_change, self.o_loss, self.o_grad], 1).detach()
 
     def render(self):
         plt.subplot(1,2,1)
