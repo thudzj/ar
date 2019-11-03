@@ -1,28 +1,26 @@
 import random
+import torch
+from run import PPO
+from torch.distributions import Categorical
 from simple_env import SimpleEnv
 
-env = SimpleEnv(seed=12345)
-ob = env.init_ob
-
-for _ in range(2):
-    while(True):
-        # action = policy(ob)
-        action = (0, 1)
-        ob, reward, episode_over, tmp = env.step(action)
-        # update the policy with reward
-        if episode_over:
-            break
-    env.render()
-
-    env.reset()
-    ob = env.init_ob
+PATH = 'PPO.pth'
+model = PPO()
+model.load_state_dict(torch.load(PATH))
 
 env_test = SimpleEnv(1, 3, testing=True)
-ob = env.init_ob
+ob = env_test.reset()
+
+
 while(True):
     # action = policy(ob)
-    action = (6, 1)
-    ob, reward, episode_over, tmp = env_test.step(action)
+    prob_1 = model.pi_1(ob[0].float())
+    m_1 = Categorical(prob_1)
+    print(m_1)
+    a_1 = m_1.sample().item()
+    action = [a_1, 1]
+    ob,episode_over, _, _ = env_test.step(action)
     if episode_over:
         break
+
 env_test.render()

@@ -12,10 +12,12 @@ gamma         = 0.98
 lmbda         = 0.95
 eps_clip      = 0.1
 K_epoch       = 3
-T_horizon     = 20
+T_horizon     = 500
 state_space   = 5
 action_space  = 8
 para_space    = 4
+
+PATH = 'PPO.pth'
 
 class PPO(nn.Module):
     def __init__(self):
@@ -103,6 +105,10 @@ class PPO(nn.Module):
             loss.mean().backward()
             self.optimizer.step()
 
+    def save_net(self):
+        print("save_net")
+        torch.save(self.state_dict(),PATH)
+
 
 def main():
     env = SimpleEnv(seed=12345)
@@ -114,8 +120,8 @@ def main():
         s = env.reset()
         done = False
         while not done:
-            # for t in range(T_horizon):
-                print(s[0])
+            for t in range(T_horizon):
+            #print(s[0])
                 prob_1 = model.pi_1(s[0].float())
                 # print(prob_1)
                 m_1 = Categorical(prob_1)
@@ -129,20 +135,22 @@ def main():
 
                 a = [a_1, a_2]
                 s_prime, r, done, info = env.step(a)
-                if info['i_loss'] > 100:
-                    break
+                
 
                 prob_lst = [prob_1[a_1].item(), prob_2[a_2].item()]
                 model.put_data((s[0].numpy(), a, r, s_prime[0].numpy(), prob_lst, done))
                 s = s_prime
 
                 score += r
+
                 if done:
                     break
-        model.train_net()
+
+            model.train_net()
 
         if n_epi%print_interval==0 and n_epi!=0:
             print("# of episode :{}, avg score : {:.1f}".format(n_epi, score/print_interval))
+            model.save_net()
             score = 0.0
 
     env.close()

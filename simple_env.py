@@ -59,11 +59,11 @@ class SimpleEnv:
             self.points_y.append(self.ws[-1][0].item())
             self.grad_stats.detach()
             self.ws = [self.w.detach_().requires_grad_()]
-            if not self.testing:
-                # pass
-                print("Training ite", self.outer_count, reward)
-            else:
-                print("Testing ite", self.outer_count, reward)
+            #if not self.testing:
+            # pass
+            #print("Training ite", self.outer_count, reward)
+            #else:
+            #print("Testing ite", self.outer_count, reward)
 
         else:
             reward = 0
@@ -85,6 +85,10 @@ class SimpleEnv:
         else:
             episode_over = False
 
+        if self.i_loss.item() > 100:
+            episode_over = True
+            reward = -1
+        
         return ob, reward, episode_over,{'i_loss': self.i_loss.item()}
 
     def reset(self, p=None, q=None):
@@ -128,7 +132,7 @@ class SimpleEnv:
         self.inner_count = 0
         self.outer_count = 0
 
-        print('reset')
+        #print('reset')
         return torch.stack([self.i_loss, self.i_grad, self.i_grad_change, self.o_loss, self.o_grad], 1).detach()
 
     def render(self):
