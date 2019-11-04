@@ -9,18 +9,19 @@ model = PPO()
 model.load_state_dict(torch.load(PATH))
 
 env_test = SimpleEnv(1, 3, testing=True)
-ob = env_test.reset()
+ob = env_test.reset(1, 3)
 
 
+score = 0
 while(True):
     # action = policy(ob)
     prob_1 = model.pi_1(ob[0].float())
-    m_1 = Categorical(prob_1)
-    print(m_1)
-    a_1 = m_1.sample().item()
+    a_1 = prob_1.argmax().item()
     action = [a_1, 1]
-    ob,episode_over, _, _ = env_test.step(action)
+    ob,r, episode_over, _ = env_test.step(action)
+    score += r
     if episode_over:
         break
 
+print(r)
 env_test.render()
