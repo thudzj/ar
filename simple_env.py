@@ -18,8 +18,8 @@ class SimpleEnv:
 
         self.weight_decay_w = 0
         self.beta2_rmsprop = 0.9
-        self.outer_T = 100
-        self.inner_T = 5
+        self.outer_T = 50
+        self.inner_T = 10
         self.testing = testing
         self.num_tasks_per_batch = 1
         self.n_opts = len(OPTS)
@@ -33,12 +33,6 @@ class SimpleEnv:
         lr = action[1]
         if opt == self.n_opts:
             self.inner_count = 0
-        else:
-            self.inner_count = (self.inner_count + 1) % self.inner_T
-            self.ws.append(OPTS[opt](LRS[lr], self.ws[-1], self.i_grad, self.grad_stats))
-
-        # whether in inner optimization
-        if self.inner_count == 0:
             self.outer_count = self.outer_count + 1
             self.w = self.ws[-1]
 
@@ -47,12 +41,13 @@ class SimpleEnv:
             self.o_loss.backward()
             self.o_grad = self.alpha.grad.clone().detach()
             self.optimizer_alpha.step()
+            self.lr_scheduler.step()
 
             self.o_loss_mv = self.o_loss_mv*0.9 + self.o_loss.data*0.1
             self.o_grad_mv = self.o_grad_mv*0.9 + self.o_grad.data*0.1
 
             # get reward and update the policy
-            reward = self.task.get_reward(self.alpha).item()
+            reward = self.task.get_reward(self.alpha, self.w).item()
 
             self.points.append(reward)
             self.points_x.append(self.alpha[0].item())
@@ -66,7 +61,13 @@ class SimpleEnv:
             #print("Testing ite", self.outer_count, reward)
 
         else:
-            reward = 0
+            if self.inner_count < self.inner_T:
+              self.ws.append(OPTS[opt](LRS[lr], self.ws[-1], self.i_grad, self.grad_stats))
+              reward = 0
+              self.inner_count += 1
+            else:
+              reward = -1
+              self.inner_count = 0
 
         self.i_grad_change = -self.i_grad.data
         self.i_loss = self.task.inner_loss(self.ws[-1], self.alpha) + self.weight_decay_w/2. * (self.ws[-1])**2
@@ -75,7 +76,7 @@ class SimpleEnv:
                                         create_graph=True, retain_graph=True, only_inputs=True)[0]
         self.i_grad_change += self.i_grad.data
         self.grad_stats.update(self.i_grad)
-        ob = torch.stack([self.i_loss, self.i_grad, self.i_grad_change, self.o_loss.view(1), self.o_grad], 1).detach()
+        ob = torch.stack([self.i_loss, self.i_grad, self.i_grad_change, self.o_loss.view(1), self.o_grad, torch.tensor([float(self.inner_count)/self.inner_T]), torch.tensor([float(self.outer_count)/self.outer_T])], 1).detach()
 
         self.i_loss_mv = self.i_loss_mv*0.9 + self.i_loss.data*0.1
         self.i_grad_mv = self.i_grad_mv*0.9 + self.i_grad.data*0.1
@@ -85,9 +86,10 @@ class SimpleEnv:
         else:
             episode_over = False
 
-        if self.i_loss.item() > 100:
-            episode_over = True
+        if self.i_loss.item() > 1000:
             reward = -1
+        if reward == -1:
+            episode_over = True
         
         return ob, reward, episode_over,{'i_loss': self.i_loss.item()}
 
@@ -108,6 +110,7 @@ class SimpleEnv:
 
         # define optimizer for alpha
         self.optimizer_alpha = torch.optim.Adam([self.alpha], lr=.1)
+        self.lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(self.optimizer_alpha, 0.95)
 
         self.o_loss = torch.zeros_like(self.alpha)
         self.o_grad = torch.zeros_like(self.alpha)
@@ -133,7 +136,7 @@ class SimpleEnv:
         self.outer_count = 0
 
         #print('reset')
-        return torch.stack([self.i_loss, self.i_grad, self.i_grad_change, self.o_loss, self.o_grad], 1).detach()
+        return torch.stack([self.i_loss, self.i_grad, self.i_grad_change, self.o_loss, self.o_grad, torch.tensor([0.]), torch.tensor([0.])], 1).detach()
 
     def render(self):
         plt.subplot(1,2,1)

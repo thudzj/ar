@@ -22,7 +22,6 @@ for _ in range(100):
         
         prob_2 = model.pi_2(ob[0].float())
         a_2 = prob_2.argmax().item()
-        a_2 = 0
         action = [a_1, a_2]
         ob,r, episode_over, _ = env_test.step(action)
         print(r)

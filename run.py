@@ -13,9 +13,9 @@ lmbda         = 0.95
 eps_clip      = 0.1
 K_epoch       = 3
 T_horizon     = 500
-state_space   = 5
+state_space   = 7
 action_space  = 8
-para_space    = 1
+para_space    = 5
 
 PATH = 'PPO.pth'
 
@@ -64,7 +64,7 @@ class PPO(nn.Module):
             done_lst.append([done_mask])
 
         s,a,r,s_prime,done_mask, prob_a = torch.tensor(s_lst, dtype=torch.float), torch.tensor(a_lst), \
-            torch.tensor(r_lst), torch.tensor(s_prime_lst, dtype=torch.float),\
+            torch.tensor(r_lst, dtype=torch.float), torch.tensor(s_prime_lst, dtype=torch.float),\
             torch.tensor(done_lst, dtype=torch.float), torch.tensor(prob_a_lst)
         self.data = []
         return s, a, r, s_prime, done_mask, prob_a

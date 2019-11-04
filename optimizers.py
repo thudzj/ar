@@ -77,4 +77,4 @@ def nadam(lr, w, g, grad_stats, epsilon = 1e-8):
     return w.addcdiv(-lr * (1. - grad_stats.momentum_cache_t) / (1. - grad_stats.m_schedule_new), g, second_moment_sqrt_unbiased).addcdiv(-lr * grad_stats.momentum_cache_t_1 / (1. - grad_stats.m_schedule_next), grad_stats.first_moment, second_moment_sqrt_unbiased)
 
 OPTS = [sgd, sgd_momentum, sgd_momentum_nesterov, adagrad, rmsprop, adam, nadam] #rmsprop_momentum,
-LRS = [0.3]
+LRS = [0.05, 0.04, 0.03, 0.02, 0.01]
