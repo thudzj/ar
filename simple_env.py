@@ -107,7 +107,7 @@ class SimpleEnv:
         self.grad_stats = GradStats(self.w, beta2_rmsprop=self.beta2_rmsprop)
 
         # define optimizer for alpha
-        self.optimizer_alpha = torch.optim.SGD([self.alpha], lr=.3)
+        self.optimizer_alpha = torch.optim.Adam([self.alpha], lr=.1)
 
         self.o_loss = torch.zeros_like(self.alpha)
         self.o_grad = torch.zeros_like(self.alpha)

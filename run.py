@@ -15,7 +15,7 @@ K_epoch       = 3
 T_horizon     = 500
 state_space   = 5
 action_space  = 8
-para_space    = 4
+para_space    = 1
 
 PATH = 'PPO.pth'
 
@@ -87,13 +87,22 @@ class PPO(nn.Module):
 
             pi_1 = self.pi_1(s, softmax_dim=1)
             #print(pi_1)
-            pi_a = pi_1.gather(1,a[:,1].reshape(a[:,1].size()[0],1))
+            pi_a = pi_1.gather(1,a[:,0].reshape(a[:,0].size()[0],1))
+            #print(pi_a)
+            
+            pi_2 = self.pi_2(s, softmax_dim=1)
+            pi_b = pi_2.gather(1,a[:,1].reshape(a[:,1].size()[0],1))
+            #pi_1 = self.pi_1(s, softmax_dim=1)
+            #print(pi_1)
+            #spi_a = pi_1.gather(1,a[:,1].reshape(a[:,1].size()[0],1))
             #print(pi_a)
 
-            prob_n = prob_a[:,1].reshape(prob_a[:,1].size()[0],1)
+            prob_n_1 = prob_a[:,0].reshape(prob_a[:,0].size()[0],1)
+            prob_n_2 = prob_a[:,1].reshape(prob_a[:,1].size()[0],1)
             #print(prob_n)
-            ratio = torch.exp(torch.log(pi_a) - torch.log(prob_n))  # a/b == exp(log(a)-log(b))
+            ratio = torch.exp(torch.log(pi_a) + torch.log(pi_b) - torch.log(prob_n_1) - torch.log(prob_n_2))  # a/b == exp(log(a)-log(b))
 
+            #ratio = torch.exp(torch.log(pi_a) - torch.log(prob_n_1) )  # a/b == exp(log(a)-log(b))
             surr1 = ratio * advantage
             surr2 = torch.clamp(ratio, 1-eps_clip, 1+eps_clip) * advantage
             #print(self.v(s))
@@ -131,8 +140,9 @@ def main():
 
                 prob_2 = model.pi_2(s[0].float())
                 m_2 = Categorical(prob_2)
-                a_2 = 1 #m_2.sample().item()
 
+                a_2 = m_2.sample().item()
+                #a_2 = 0
                 a = [a_1, a_2]
                 s_prime, r, done, info = env.step(a)
                 
