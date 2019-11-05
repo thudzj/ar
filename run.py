@@ -12,10 +12,10 @@ gamma         = 0.98
 lmbda         = 0.95
 eps_clip      = 0.1
 K_epoch       = 3
-T_horizon     = 500
-state_space   = 7
+T_horizon     = 200
+state_space   = 9
 action_space  = 8
-para_space    = 5
+para_space    = 8
 
 PATH = 'PPO.pth'
 
@@ -89,7 +89,7 @@ class PPO(nn.Module):
             #print(pi_1)
             pi_a = pi_1.gather(1,a[:,0].reshape(a[:,0].size()[0],1))
             #print(pi_a)
-            
+
             pi_2 = self.pi_2(s, softmax_dim=1)
             pi_b = pi_2.gather(1,a[:,1].reshape(a[:,1].size()[0],1))
             #pi_1 = self.pi_1(s, softmax_dim=1)
@@ -112,6 +112,7 @@ class PPO(nn.Module):
 
             self.optimizer.zero_grad()
             loss.mean().backward()
+            # nn.utils.clip_grad_norm_(self.parameters(), 1.)
             self.optimizer.step()
 
     def save_net(self):
@@ -123,16 +124,16 @@ def main():
     env = SimpleEnv(seed=12345)
     model = PPO()
     score = 0.0
-    print_interval = 20
+    print_interval = 100
 
     for n_epi in range(10000):
         s = env.reset()
         done = False
         while not done:
             for t in range(T_horizon):
-            #print(s[0])
+                #print(s[0])
                 prob_1 = model.pi_1(s[0].float())
-                # print(prob_1)
+                # print(s[0].data, prob_1.data)
                 m_1 = Categorical(prob_1)
                 #print(m_1)
 
@@ -145,7 +146,7 @@ def main():
                 #a_2 = 0
                 a = [a_1, a_2]
                 s_prime, r, done, info = env.step(a)
-                
+
 
                 prob_lst = [prob_1[a_1].item(), prob_2[a_2].item()]
                 model.put_data((s[0].numpy(), a, r, s_prime[0].numpy(), prob_lst, done))

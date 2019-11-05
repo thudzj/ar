@@ -20,7 +20,7 @@ class Task:
 
     # return the reward of the current alpha
     def get_reward(self, alpha, w):
-        return torch.exp(-10.*((self.optimal_alpha - alpha)**2+(self.optimal_w - w)**2))
+        return torch.exp(-1.*((self.optimal_alpha - alpha)**2+(self.optimal_w - w)**2))
 
     # inner loss
     def inner_loss(self, w, alpha):
