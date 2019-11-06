@@ -63,9 +63,6 @@ class SimpleEnv:
                                             create_graph=True, retain_graph=True, only_inputs=True)[0]
             self.i_grad_change += self.i_grad.data
 
-            self.i_loss_mv = self.i_loss_mv*0.9 + self.i_loss.data*0.1
-            self.i_grad_norm_mv = self.i_grad_norm_mv*0.9 + self.i_grad.data.norm()*0.1
-
             ob = torch.stack([self.i_loss, self.i_loss-self.i_loss_mv, self.i_grad.norm().view(1), (self.i_grad.norm().add(1e-16).log()-self.i_grad_norm_mv.log()).view(1), self.i_grad_change.norm().view(1), self.o_loss, self.o_loss-self.o_loss_mv, torch.tensor([0.]), torch.tensor([float(self.outer_count)/self.outer_T])], 1).detach()
 
             if self.inner_count > 0 and self.i_loss.item() <= 100:
@@ -80,6 +77,8 @@ class SimpleEnv:
         else:
             self.grad_stats.update(self.i_grad)
             self.ws.append(OPTS[opt](LRS[lr], self.ws[-1], self.i_grad, self.grad_stats))
+            self.i_loss_mv = self.i_loss_mv*0.9 + self.i_loss.data*0.1
+            self.i_grad_norm_mv = self.i_grad_norm_mv*0.9 + self.i_grad.data.norm()*0.1
             self.inner_count += 1
 
             self.i_grad_change = -self.i_grad.data
@@ -88,9 +87,6 @@ class SimpleEnv:
                                             grad_outputs=torch.ones_like(self.i_loss),
                                             create_graph=True, retain_graph=True, only_inputs=True)[0]
             self.i_grad_change += self.i_grad.data
-            
-            self.i_loss_mv = self.i_loss_mv*0.9 + self.i_loss.data*0.1
-            self.i_grad_norm_mv = self.i_grad_norm_mv*0.9 + self.i_grad.data.norm()*0.1
 
             ob = torch.stack([self.i_loss, self.i_loss-self.i_loss_mv, self.i_grad.norm().view(1), (self.i_grad.norm().add(1e-16).log()-self.i_grad_norm_mv.log()).view(1), self.i_grad_change.norm().view(1), self.o_loss, self.o_loss-self.o_loss_mv, torch.tensor([float(self.inner_count)/self.inner_T]), torch.tensor([float(self.outer_count)/self.outer_T])], 1).detach()
 
@@ -133,8 +129,8 @@ class SimpleEnv:
                                         grad_outputs=torch.ones_like(self.i_loss),
                                         create_graph=True, retain_graph=True, only_inputs=True)[0]
 
-        self.i_loss_mv = self.i_loss.clone().detach_()
-        self.i_grad_norm_mv = self.i_grad.data.norm()
+        self.i_loss_mv = torch.zeros_like(self.i_loss) #self.i_loss.clone().detach_()
+        self.i_grad_norm_mv = torch.zeros_like(self.i_grad) #self.i_grad.data.norm()
         self.o_loss_mv = self.o_loss.clone().detach_()
         self.o_grad_norm_mv = self.o_grad.data.norm()
         self.i_grad_change = self.i_grad.clone().detach_()
@@ -144,7 +140,7 @@ class SimpleEnv:
         self.outer_count = 0
 
         #print('reset')
-        return torch.stack([self.i_loss, self.i_loss-self.i_loss_mv, self.i_grad.norm().view(1), (self.i_grad.norm().log()-self.i_grad_norm_mv.log()).view(1), self.i_grad_change.norm().view(1), self.o_loss, self.o_loss-self.o_loss_mv, torch.tensor([0.]), torch.tensor([0.])], 1).detach()
+        return torch.stack([self.i_loss, self.i_loss-self.i_loss_mv, self.i_grad.norm().view(1), (self.i_grad.norm().log()-self.i_grad_norm_mv.add(1e-16).log()).view(1), self.i_grad_change.norm().view(1), self.o_loss, self.o_loss-self.o_loss_mv, torch.tensor([0.]), torch.tensor([0.])], 1).detach()
 
     def render(self):
         plt.subplot(1,2,1)
