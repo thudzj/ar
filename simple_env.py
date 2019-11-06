@@ -62,7 +62,7 @@ class SimpleEnv:
                                             grad_outputs=torch.ones_like(self.i_loss),
                                             create_graph=True, retain_graph=True, only_inputs=True)[0]
             self.i_grad_change += self.i_grad.data
-            self.grad_stats.update(self.i_grad)
+
             self.i_loss_mv = self.i_loss_mv*0.9 + self.i_loss.data*0.1
             self.i_grad_norm_mv = self.i_grad_norm_mv*0.9 + self.i_grad.data.norm()*0.1
 
@@ -78,6 +78,7 @@ class SimpleEnv:
                 episode_over = True
             self.points.append(reward)
         else:
+            self.grad_stats.update(self.i_grad)
             self.ws.append(OPTS[opt](LRS[lr], self.ws[-1], self.i_grad, self.grad_stats))
             self.inner_count += 1
 
@@ -87,7 +88,7 @@ class SimpleEnv:
                                             grad_outputs=torch.ones_like(self.i_loss),
                                             create_graph=True, retain_graph=True, only_inputs=True)[0]
             self.i_grad_change += self.i_grad.data
-            self.grad_stats.update(self.i_grad)
+            
             self.i_loss_mv = self.i_loss_mv*0.9 + self.i_loss.data*0.1
             self.i_grad_norm_mv = self.i_grad_norm_mv*0.9 + self.i_grad.data.norm()*0.1
 
@@ -131,7 +132,6 @@ class SimpleEnv:
         self.i_grad = torch.autograd.grad(outputs=self.i_loss, inputs=self.ws[-1],
                                         grad_outputs=torch.ones_like(self.i_loss),
                                         create_graph=True, retain_graph=True, only_inputs=True)[0]
-        self.grad_stats.update(self.i_grad)
 
         self.i_loss_mv = self.i_loss.clone().detach_()
         self.i_grad_norm_mv = self.i_grad.data.norm()

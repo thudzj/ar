@@ -15,9 +15,10 @@ K_epoch       = 3
 T_horizon     = 200
 state_space   = 9
 action_space  = 8
-para_space    = 8
+para_space    = 5
+grad_clip     = 1.
 
-PATH = 'PPO.pth'
+PATH = 'PPO_{}.pth'.format(grad_clip)
 
 class PPO(nn.Module):
     def __init__(self):
@@ -112,7 +113,7 @@ class PPO(nn.Module):
 
             self.optimizer.zero_grad()
             loss.mean().backward()
-            # nn.utils.clip_grad_norm_(self.parameters(), 1.)
+            nn.utils.clip_grad_norm_(self.parameters(), grad_clip)
             self.optimizer.step()
 
     def save_net(self):
