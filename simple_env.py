@@ -63,7 +63,7 @@ class SimpleEnv:
                                             create_graph=True, retain_graph=True, only_inputs=True)[0]
             self.i_grad_change += self.i_grad.data
 
-            ob = torch.stack([self.i_loss, self.i_loss-self.i_loss_mv, self.i_grad.norm().view(1), (self.i_grad.norm().add(1e-16).log()-self.i_grad_norm_mv.log()).view(1), self.i_grad_change.norm().view(1), self.o_loss, self.o_loss-self.o_loss_mv, torch.tensor([0.]), torch.tensor([float(self.outer_count)/self.outer_T])], 1).detach()
+            ob = torch.stack([self.i_loss, self.i_loss-self.i_loss_mv, self.i_grad.norm().view(1), (self.i_grad.norm().add(1e-16).log()-self.i_grad_norm_mv.add(1e-16).log()).view(1), self.i_grad_change.norm().view(1), self.o_loss, self.o_loss-self.o_loss_mv, torch.tensor([0.]), torch.tensor([float(self.outer_count)/self.outer_T])], 1).detach()
 
             if self.inner_count > 0 and self.i_loss.item() <= 100:
                 reward = self.task.get_reward(self.alpha, self.ws[-1]).item()
@@ -88,7 +88,7 @@ class SimpleEnv:
                                             create_graph=True, retain_graph=True, only_inputs=True)[0]
             self.i_grad_change += self.i_grad.data
 
-            ob = torch.stack([self.i_loss, self.i_loss-self.i_loss_mv, self.i_grad.norm().view(1), (self.i_grad.norm().add(1e-16).log()-self.i_grad_norm_mv.log()).view(1), self.i_grad_change.norm().view(1), self.o_loss, self.o_loss-self.o_loss_mv, torch.tensor([float(self.inner_count)/self.inner_T]), torch.tensor([float(self.outer_count)/self.outer_T])], 1).detach()
+            ob = torch.stack([self.i_loss, self.i_loss-self.i_loss_mv, self.i_grad.norm().view(1), (self.i_grad.norm().add(1e-16).log()-self.i_grad_norm_mv.add(1e-16).log()).view(1), self.i_grad_change.norm().view(1), self.o_loss, self.o_loss-self.o_loss_mv, torch.tensor([float(self.inner_count)/self.inner_T]), torch.tensor([float(self.outer_count)/self.outer_T])], 1).detach()
 
             if self.inner_count < self.inner_T and self.i_loss.item() <= 100:
                 reward = 0
@@ -106,9 +106,11 @@ class SimpleEnv:
             self.task = random_task(self.num_tasks_per_batch)
 
         # define variables
-        self.w = torch.tensor([-2.]*self.num_tasks_per_batch, requires_grad=True)
-        self.alpha = torch.tensor([2.]*self.num_tasks_per_batch, requires_grad=True)
+        self.w = torch.tensor(np.random.uniform(-2, 0, self.num_tasks_per_batch).astype(np.float32), requires_grad=True)
+        self.alpha = torch.tensor(np.random.uniform(0, 4, self.num_tasks_per_batch).astype(np.float32), requires_grad=True)
         self.ws = [self.w]
+
+        self.start = (self.alpha.data.clone(), self.w.data.clone())
 
         # initialize the statistics of gradients for w
         self.grad_stats = GradStats(self.w, beta2_rmsprop=self.beta2_rmsprop)
@@ -140,7 +142,7 @@ class SimpleEnv:
         self.outer_count = 0
 
         #print('reset')
-        return torch.stack([self.i_loss, self.i_loss-self.i_loss_mv, self.i_grad.norm().view(1), (self.i_grad.norm().log()-self.i_grad_norm_mv.add(1e-16).log()).view(1), self.i_grad_change.norm().view(1), self.o_loss, self.o_loss-self.o_loss_mv, torch.tensor([0.]), torch.tensor([0.])], 1).detach()
+        return torch.stack([self.i_loss, self.i_loss-self.i_loss_mv, self.i_grad.norm().view(1), (self.i_grad.norm().add(1e-16).log()-self.i_grad_norm_mv.add(1e-16).log()).view(1), self.i_grad_change.norm().view(1), self.o_loss, self.o_loss-self.o_loss_mv, torch.tensor([0.]), torch.tensor([0.])], 1).detach()
 
     def render(self):
         plt.subplot(1,2,1)
@@ -151,6 +153,7 @@ class SimpleEnv:
         tmp = np.max(self.points_x)
         plt.plot([0, tmp+1], [0, (tmp+1)*self.task.p[0]/2.], 'r--')
         plt.plot([self.task.optimal_alpha[0]], [self.task.optimal_w[0]], 'g^')
+        plt.plot([self.start[0]], [self.start[1]], 'b*')
         plt.show()
         #plt.savefig("reward.pdf")
 
