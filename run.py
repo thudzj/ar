@@ -13,8 +13,10 @@ lmbda         = 0.95
 eps_clip      = 0.1
 K_epoch       = 3
 T_horizon     = 200
+sample_step   = 32
 state_space   = 9
-action_space  = 8
+#action_space  = 8
+action_space  = 3
 para_space    = 5
 grad_clip     = 1.
 
@@ -33,7 +35,9 @@ class PPO(nn.Module):
 
     def pi_1(self, x, softmax_dim = 0):
         x = F.relu(self.fc1(x))
+        #print('x1', x)
         x = self.fc_pi_1(x)
+        #print('x',x)
         prob = F.softmax(x, dim=softmax_dim)
         return prob
 
@@ -70,12 +74,15 @@ class PPO(nn.Module):
         self.data = []
         return s, a, r, s_prime, done_mask, prob_a
 
-    def train_net(self):
+    def train_net(self, timeslide):
         s, a, r, s_prime, done_mask, prob_a = self.make_batch()
 
         for i in range(K_epoch):
             td_target = r + gamma * self.v(s_prime) * done_mask
             delta = td_target - self.v(s)
+            if timeslide > 2298:
+                print('target, v', td_target, self.v(s_prime))
+                print('s_prime',s_prime)
             delta = delta.detach().numpy()
 
             advantage_lst = []
@@ -85,7 +92,8 @@ class PPO(nn.Module):
                 advantage_lst.append([advantage])
             advantage_lst.reverse()
             advantage = torch.tensor(advantage_lst, dtype=torch.float)
-
+            
+            #print('advantage-----',advantage)
             pi_1 = self.pi_1(s, softmax_dim=1)
             #print(pi_1)
             pi_a = pi_1.gather(1,a[:,0].reshape(a[:,0].size()[0],1))
@@ -101,14 +109,28 @@ class PPO(nn.Module):
             prob_n_1 = prob_a[:,0].reshape(prob_a[:,0].size()[0],1)
             prob_n_2 = prob_a[:,1].reshape(prob_a[:,1].size()[0],1)
             #print(prob_n)
+            #print('prob_n_1','prob_n_2', prob_n_1, prob_n_2)
+            #print('pi_a', 'pi_b', pi_a, pi_b)
+            pi_a  = pi_a + (pi_a<1e-8)*1e-8
+            pi_b  = pi_b + (pi_b<1e-8)*1e-8
+            prob_n_1 = prob_n_1 + (prob_n_1<1e-8)*1e-8
+            prob_n_2 = prob_n_2 + (prob_n_2<1e-8)*1e-8
+
             ratio = torch.exp(torch.log(pi_a) + torch.log(pi_b) - torch.log(prob_n_1) - torch.log(prob_n_2))  # a/b == exp(log(a)-log(b))
 
             #ratio = torch.exp(torch.log(pi_a) - torch.log(prob_n_1) )  # a/b == exp(log(a)-log(b))
             surr1 = ratio * advantage
             surr2 = torch.clamp(ratio, 1-eps_clip, 1+eps_clip) * advantage
+                #if timeslide > 2298:
+                #print('----------',pi_a, pi_b,prob_n_1, prob_n_2)
+                #print('ratio', ratio)
+                #print('delta', delta)
+                #print('adsadasda', advantage, surr1)
             #print(self.v(s))
+            #print('surr1, surr2, v(s)', surr1, surr2, self.v(s))
             loss = -torch.min(surr1, surr2) + F.smooth_l1_loss(self.v(s) , td_target.detach())
 
+            #print('loss------------,',loss)
             #print(loss)
 
             self.optimizer.zero_grad()
@@ -117,7 +139,7 @@ class PPO(nn.Module):
             self.optimizer.step()
 
     def save_net(self):
-        print("save_net")
+        #print("save_net")
         torch.save(self.state_dict(),PATH)
 
 
@@ -125,28 +147,37 @@ def main():
     env = SimpleEnv(seed=12345)
     model = PPO()
     score = 0.0
+    random.seed(1997)
     print_interval = 100
 
+    total_step = 0
     for n_epi in range(10000):
         s = env.reset()
         done = False
+        dict = [0, 4, 7]
         while not done:
             for t in range(T_horizon):
                 #print(s[0])
+                total_step = total_step + 1
+                #print(s[0].float())
                 prob_1 = model.pi_1(s[0].float())
                 # print(s[0].data, prob_1.data)
+                #print('prob_1',prob_1)
                 m_1 = Categorical(prob_1)
-                #print(m_1)
-
+                
                 a_1 = m_1.sample().item()
-
+    #a_1 = lock[a_1]
+                tmp_1 = dict[a_1]
+                #print(tmp_1)
+                
                 prob_2 = model.pi_2(s[0].float())
                 m_2 = Categorical(prob_2)
 
                 a_2 = m_2.sample().item()
                 #a_2 = 0
+                
                 a = [a_1, a_2]
-                s_prime, r, done, info = env.step(a)
+                s_prime, r, done, info = env.step([tmp_1, a_2])
 
 
                 prob_lst = [prob_1[a_1].item(), prob_2[a_2].item()]
@@ -155,11 +186,12 @@ def main():
 
                 score += r
 
+                if total_step % sample_step == 0:
+                    model.train_net(n_epi)
                 if done:
                     break
-
-            model.train_net()
-
+        #print(count, count_b)
+    
         if n_epi%print_interval==0 and n_epi!=0:
             print("# of episode :{}, avg score : {:.1f}".format(n_epi, score/print_interval))
             model.save_net()
