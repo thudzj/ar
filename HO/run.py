@@ -15,8 +15,8 @@ K_epoch       = 3
 T_horizon     = 200
 sample_step   = 32
 state_space   = 9
-#action_space  = 8
-action_space  = 3
+action_space  = 8
+#action_space  = 3
 para_space    = 5
 grad_clip     = 1.
 
@@ -80,9 +80,9 @@ class PPO(nn.Module):
         for i in range(K_epoch):
             td_target = r + gamma * self.v(s_prime) * done_mask
             delta = td_target - self.v(s)
-            if timeslide > 2298:
-                print('target, v', td_target, self.v(s_prime))
-                print('s_prime',s_prime)
+            # if timeslide > 2298:
+            #     print('target, v', td_target, self.v(s_prime))
+            #     print('s_prime',s_prime)
             delta = delta.detach().numpy()
 
             advantage_lst = []
@@ -154,7 +154,7 @@ def main():
     for n_epi in range(10000):
         s = env.reset()
         done = False
-        dict = [0, 4, 7]
+        # dict = [0, 4, 7]
         while not done:
             for t in range(T_horizon):
                 #print(s[0])
@@ -167,7 +167,7 @@ def main():
                 
                 a_1 = m_1.sample().item()
     #a_1 = lock[a_1]
-                tmp_1 = dict[a_1]
+                # tmp_1 = dict[a_1]
                 #print(tmp_1)
                 
                 prob_2 = model.pi_2(s[0].float())
@@ -177,7 +177,7 @@ def main():
                 #a_2 = 0
                 
                 a = [a_1, a_2]
-                s_prime, r, done, info = env.step([tmp_1, a_2])
+                s_prime, r, done, info = env.step([a_1, a_2])
 
 
                 prob_lst = [prob_1[a_1].item(), prob_2[a_2].item()]

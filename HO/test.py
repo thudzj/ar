@@ -9,7 +9,7 @@ model = PPO()
 model.load_state_dict(torch.load(PATH))
 
 env_test = SimpleEnv(testing=True)
-ob = env_test.reset(1, 3)
+ob = env_test.reset(3, 2)
 
 
 for _ in range(100):
@@ -18,8 +18,8 @@ for _ in range(100):
         # action = policy(ob)
         prob_1 = model.pi_1(ob[0].float())
         a_1 = prob_1.argmax().item()
-        dict = [0,4,7]
-        a_1 = dict[a_1]
+        # dict = [0,4,7]
+        # a_1 = dict[a_1]
         
         prob_2 = model.pi_2(ob[0].float())
         a_2 = prob_2.argmax().item()

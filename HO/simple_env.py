@@ -66,7 +66,9 @@ class SimpleEnv:
             ob = torch.stack([self.i_loss, self.i_loss-self.i_loss_mv, self.i_grad.norm().view(1), (self.i_grad.norm().add(1e-16).log()-self.i_grad_norm_mv.add(1e-16).log()).view(1), self.i_grad_change.norm().view(1), self.o_loss, self.o_loss-self.o_loss_mv, torch.tensor([0.]), torch.tensor([float(self.outer_count)/self.outer_T])], 1).detach()
 
             if self.inner_count > 0 and self.i_loss.item() <= 100:
-                reward = self.task.get_reward(self.alpha, self.ws[-1]).item()
+                tmp = self.task.get_reward(self.alpha, self.ws[-1]).item()
+                reward = tmp# - self.last_reward
+                self.last_reward = tmp
                 self.inner_count = 0
             else:
                 reward = -1
@@ -140,6 +142,7 @@ class SimpleEnv:
         #whether in inner optimization
         self.inner_count = 0
         self.outer_count = 0
+        self.last_reward = 0
 
         #print('reset')
         return torch.stack([self.i_loss, self.i_loss-self.i_loss_mv, self.i_grad.norm().view(1), (self.i_grad.norm().add(1e-16).log()-self.i_grad_norm_mv.add(1e-16).log()).view(1), self.i_grad_change.norm().view(1), self.o_loss, self.o_loss-self.o_loss_mv, torch.tensor([0.]), torch.tensor([0.])], 1).detach()
@@ -150,10 +153,10 @@ class SimpleEnv:
 
         plt.subplot(1,2,2)
         plt.plot(self.points_x, self.points_y)
-        tmp = np.max(self.points_x)
-        plt.plot([0, tmp+1], [0, (tmp+1)*self.task.p[0]/2.], 'r--')
+        # tmp = np.max(self.points_x)
+        # plt.plot([0, tmp+1], [0, (tmp+1)*self.task.p[0]/2.], 'r--')
         plt.plot([self.task.optimal_alpha[0]], [self.task.optimal_w[0]], 'g^')
-        plt.plot([self.start[0]], [self.start[1]], 'b*')
+        plt.plot([self.start[0]], [self.start[1]], 'r*')
         plt.show()
         #plt.savefig("reward.pdf")
 

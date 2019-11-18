@@ -1,0 +1,3 @@
+22:36:24;INFO|[epoch 0, it    0] g_loss =    0.3478, d_loss =    0.0179, dl=   0.0000, il=   0.0000
+22:36:50;DEBUG|findfont: Matching :family=sans-serif:style=normal:variant=normal:weight=normal:stretch=normal:size=10.0 to DejaVu Sans ('/usr/local/lib/python3.5/site-packages/matplotlib/mpl-data/fonts/ttf/DejaVuSans.ttf') with score of 0.050000
+22:36:51;DEBUG|findfont: Matching :family=sans-serif:style=normal:variant=normal:weight=normal:stretch=normal:size=7.0 to DejaVu Sans ('/usr/local/lib/python3.5/site-packages/matplotlib/mpl-data/fonts/ttf/DejaVuSans.ttf') with score of 0.050000

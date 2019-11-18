@@ -35,4 +35,4 @@ class Task:
         return w * alpha - self.q * alpha + 1
 
 def random_task(b=1):
-    return Task(numpy.random.uniform(1, 4, size=b), numpy.random.uniform(1e-8, 4, size=b), b)
+    return Task(numpy.random.uniform(2, 4, size=b), numpy.random.uniform(0, 4, size=b), b)
